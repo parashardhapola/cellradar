@@ -3,6 +3,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from io import StringIO
+from matplotlib import colors as mcolors
+
+named_colors = {k.capitalize():v for k,v in
+				dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS).items() if len(k) > 1}
 
 datafiles = {
 	'mouse_normal_bloodspot': 'datasets/bloodspot_normal_mouse.csv'
@@ -102,7 +106,14 @@ def makeradar():
 			})
 	return jsonify({
 		'valid_genes': '\n'.join(genes),
-		'svg': make_fig(dataframes[data['organism']][genes])
+		'svg': make_fig(dataframes[data['organism']][genes], fs=int(data['fontSize']),
+						lc=data['lineColor'].lower(), fc=data['fillColor'].lower())
+	})
+
+@app.route("/mpl_colors", methods=['GET'])
+def mpl_colors():
+	return jsonify({
+		'mpl_colors': named_colors
 	})
 
 if __name__ == "__main__":
