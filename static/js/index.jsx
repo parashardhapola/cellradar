@@ -1,4 +1,36 @@
 class GeneBox extends React.Component {
+	render () {
+		return ()
+	}
+}
+
+class SvgDisplay extends React.Component {
+	render () {
+		return ()
+	}
+}
+
+class SvgCustomize extends React.Component {
+	render () {
+		return ()
+	}
+}
+
+class DatasetSelect extends React.Component {
+	render () {
+		return ()
+	}
+}
+
+
+
+
+
+
+
+
+
+class GeneBox extends React.Component {
 	constructor () {
 		super()
 		this.updateGeneList	= this.updateGeneList.bind(this)
@@ -60,7 +92,7 @@ class GeneBox extends React.Component {
         	},
 			body: JSON.stringify({
 				'genes': geneList,
-				'organism': this.props.organism,
+				'dataset': this.props.dataset,
 				'fillColor': this.state.fillColor,
 				'lineColor': this.state.lineColor,
 				'fontSize': this.state.fontSize
@@ -181,12 +213,12 @@ class GeneBox extends React.Component {
 class App extends React.Component {
 	constructor () {
 		super()
-		this.updateOrganism	= this.updateOrganism.bind(this)
-		this.state = {organism: 'mouse_normal_bloodspot'};
+		this.updateDataset	= this.updateDataset.bind(this)
+		this.state = {dataset: 'mouse_normal_bloodspot'};
 	}
 
-	updateOrganism (e) {
-		this.setState({organism: e.target.value});
+	updateDataset (e) {
+		this.setState({dataset: e.target.value});
 	}
 
 	render () {
@@ -207,7 +239,7 @@ class App extends React.Component {
 							</div>
 							<div className="col-9">
 								<br />
-								<select onInput={this.updateOrganism}>
+								<select onInput={this.updateDataset}>
 						 			<option value="mouse_normal_bloodspot">
 						 				Mouse normal hematopoiesis</option>
 						 			<option value="human">Human</option>
@@ -216,7 +248,7 @@ class App extends React.Component {
 						</div>
 
 						<GeneBox downloaduid='downsvg' svguid='svgimage' uid='genetext'
-								 organism={this.state.organism} />
+								 dataset={this.state.dataset} />
 					</div>
 
 					<div className="col-1"></div>

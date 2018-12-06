@@ -19,7 +19,6 @@ def make_fig(dataset, genes, figsize=(6, 6), fs=14, display_std=True,
         data_std = [data_mean[0]]
         index = ['cells']
         for i in genes:
-            i = re.sub('[^0-9a-zA-Z]+', '', i).upper()
             try:
                 x = a['data'][i][:]
             except KeyError:
@@ -84,49 +83,64 @@ def make_fig(dataset, genes, figsize=(6, 6), fs=14, display_std=True,
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, polar=True)
     mean, std = read_data()
+    if len(mean.columns) == 0:
+        return '', []
     plot_vals(ax, mean, std, display_std, lc, fc, lw)
     make_labels(ax, list(mean.index), fs)
     clean_axis(ax)
     plt.tight_layout()
-
     retval = make_svg(fig)
     fig.clear()
     plt.close()
-    return retval
+    return retval, list(mean.columns)
 
-datafiles = {
-    'mouse_hematopoiesis_normal': 'datasets/mouse_normal_hematopoiesis_bloodspot.h5'
-    'human_hematopoiesis_normal': 'datasets/human_hemaexplorer.h5'
+DATAFILES = {
+    'Mouse normal hematopoiesis (BloodSpot)': 'datasets/mouse_normal_hematopoiesis_bloodspot.h5',
+    'Human normal hematopoiesis (HemaExplorer)': 'datasets/human_hemaexplorer.h5'
 }
 
 app = Flask(__name__)
 
-@app.route("/")
+if __name__ == "__main__":
+    url_prefix = '/cellradar'
+else:
+    url_prefix = '/'
+
+@app.route("%s" % url_prefix)
 def index():
     return render_template('index.html',
      randstr='?rand%d' % np.random.randint(100000000000000))
 
-@app.route("/makeradar", methods=['POST'])
-def makeradar():
+@app.route("%s/getdatasets" % url_prefix, methods=['GET'])
+def get_datasets():
+    return jsonify({
+        'datasets': list(DATAFILES.keys()),
+    })
+
+@app.route("%s/makeradar" % url_prefix, methods=['POST'])
+def make_radar():
     data = request.get_json()
-    genes = [x.upper() for x in data['genes']]
-    if data['organism'] not in datafiles:
+    genes = [re.sub('[^0-9a-zA-Z]+', '', x).upper() for x in data['genes']]
+    if data['dataset'] not in DATAFILES:
         return jsonify({
             'valid_genes': '\n'.join(genes),
-            'svg': 'Datafiles for %s are not part of the database yet' % data['organism']
+            'svg': '%s not present in the database' % data['dataset']
         })
     else:
-        genes = list(genes_lists[data['organism']].intersection(genes))
-        if len(genes) < 1:
+        svg, valid_genes = make_fig(
+            data['dataset'], genes, figsize=(6, 6), display_std=True,
+            lw=1, fs=int(data['fontSize']),
+            lc=data['lineColor'].lower(), fc=data['fillColor'].lower())
+        if len(valid_genes) == 0:
             return jsonify({
                 'valid_genes': '',
                 'svg': 'Atleast one valid gene required'
             })
-    return jsonify({
-        'valid_genes': '\n'.join(genes),
-        'svg': make_fig(dataframes[data['organism']][genes], fs=int(data['fontSize']),
-                        lc=data['lineColor'].lower(), fc=data['fillColor'].lower())
-    })
+        else:
+            return jsonify({
+                'valid_genes': '\n'.join(valid_genes),
+                'svg': svg
+            })
 
 @app.route("/mpl_colors", methods=['GET'])
 def mpl_colors():
