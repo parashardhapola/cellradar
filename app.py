@@ -67,9 +67,9 @@ app = Flask(__name__)
 if __name__ == "__main__":
     url_prefix = '/cellradar'
 else:
-    url_prefix = '/'
+    url_prefix = ''
 
-@app.route("%s" % url_prefix)
+@app.route("%s/" % url_prefix)
 def index():
     return render_template('index.html',
      randstr='?rand%d' % np.random.randint(1e8))
@@ -87,4 +87,4 @@ def make_radar():
     return jsonify(prep_data(data['dataset'], data['genes']))
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=10751)
