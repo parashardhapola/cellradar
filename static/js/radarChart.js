@@ -1,13 +1,13 @@
 function RadarChart(id, data, options) {
 	var cfg = {
-	 w: 350,				//Width of the circle
-	 h: 350,				//Height of the circle
-	 margin: {top: 60, right: 60, bottom: 60, left: 60}, //The margins of the SVG
+	 w: 200,				//Width of the circle
+	 h: 200,				//Height of the circle
+	 margin: {top: 40, right: 60, bottom: 50, left: 60}, //The margins of the SVG
 	 levels: 5,				//How many levels or inner circles should there be drawn
 	 maxValue: 1, 			//What is the value that the biggest circle will represent
 	 labelFactor: 1.15, 	//How much farther than the radius of the outer circle should the labels be placed
 	 wrapWidth: 80, 		//The number of pixels after which a label needs to be given a new line
-	 opacityArea: 0.35, 	//The opacity of the area of the blob
+	 opacityArea: 0.6, 	//The opacity of the area of the blob
 	 dotRadius: 2, 			//The size of the colored circles of each blog
 	 opacityCircles: 0.1, 	//The opacity of the circles of each blob
 	 strokeWidth: 2, 		//The width of the stroke around each blob
@@ -23,7 +23,9 @@ function RadarChart(id, data, options) {
 	}//if
 	
 	//If the supplied maxValue is smaller than the actual one, replace by the max in the data
-	var maxValue = Math.max(cfg.maxValue, d3.max(data, function(i){return d3.max(i.map(function(o){return o.value;}))}));
+	var maxValue = Math.max(cfg.maxValue, d3.max(data, function(i){
+		return d3.max(i.map(function(o){return o.value;}))}
+		));
 		
 	var allAxis = (data[0].map(function(i, j){return i.axis})),	//Names of each axis
 		total = allAxis.length,					//The number of different axes
@@ -74,13 +76,13 @@ function RadarChart(id, data, options) {
 	axisGrid.selectAll(".levels")
 	   .data(d3.range(1,(cfg.levels+1)).reverse())
 	   .enter()
-		.append("circle")
-		.attr("class", "gridCircle")
-		.attr("r", function(d, i){return radius/cfg.levels*d;})
-		.style("fill", "#CDCDCD")
-		.style("stroke", "#CDCDCD")
-		.style("fill-opacity", cfg.opacityCircles)
-		.style("filter" , "url(#glow)");
+	   .append("circle")
+	   .attr("class", "gridCircle")
+	   .attr("r", function(d, i){return radius/cfg.levels*d;})
+	   .style("fill", "#CDCDCD")
+	   .style("stroke", "#CDCDCD")
+	   .style("fill-opacity", cfg.opacityCircles)
+	   .style("filter" , "url(#glow)");
 
 	//Text indicating at what % each level is
 	// axisGrid.selectAll(".axisLabel")
@@ -189,46 +191,86 @@ function RadarChart(id, data, options) {
 		.style("fill", function(d,i,j) { return cfg.color(j); })
 		.style("fill-opacity", 0.8);
 
+
+	// // on mouseover for the legend symbol
+	// function cellover(d) {
+	// 		//Dim all blobs
+	// 		d3.selectAll(".radarArea")
+	// 			.transition().duration(200)
+	// 			.style("fill-opacity", 0.1); 
+	// 		//Bring back the hovered over blob
+	// 		d3.select("." + data[d][0][areaName].replace(/\s+/g, ''))
+	// 			.transition().duration(200)
+	// 			.style("fill-opacity", 0.7);	
+	// }
+
+	// // on mouseout for the legend symbol
+	// function cellout() {
+	// 	//Bring back all blobs
+	// 	d3.selectAll(".radarArea")
+	// 		.transition().duration(200)
+	// 		.style("fill-opacity", cfg.opacityArea);
+	// }
+
+	// svg.append("g")
+	//   	.attr("class", "legendOrdinal")
+	//   	.attr("transform", "translate(" + cfg["legendPosition"]["x"] + "," + cfg["legendPosition"]["y"] + ")");
+
+	// 	var legendOrdinal = d3.legend.color()
+	// 	  	.shape("path", d3.svg.symbol().type("triangle-up").size(150)())
+	//   		.shapePadding(10)
+	//   		.scale(cfg.color)
+	//   		.labels(cfg.color.domain().map(function(d){
+	//   			return data[d][0][areaName];
+	//   		}))
+	//   		.on("cellover", function(d){ cellover(d); })
+	//   		.on("cellout", function(d) { cellout(); });
+
+	// svg.select(".legendOrdinal")
+	//   .call(legendOrdinal);
+	
+
+
 	/////////////////////////////////////////////////////////
 	//////// Append invisible circles for tooltip ///////////
 	/////////////////////////////////////////////////////////
 	
 	//Wrapper for the invisible circles on top
-	var blobCircleWrapper = g.selectAll(".radarCircleWrapper")
-		.data(data)
-		.enter().append("g")
-		.attr("class", "radarCircleWrapper");
+	// var blobCircleWrapper = g.selectAll(".radarCircleWrapper")
+	// 	.data(data)
+	// 	.enter().append("g")
+	// 	.attr("class", "radarCircleWrapper");
 		
-	//Append a set of invisible circles on top for the mouseover pop-up
-	blobCircleWrapper.selectAll(".radarInvisibleCircle")
-		.data(function(d,i) { return d; })
-		.enter().append("circle")
-		.attr("class", "radarInvisibleCircle")
-		.attr("r", cfg.dotRadius*1.5)
-		.attr("cx", function(d,i){ return rScale(d.value) * Math.cos(angleSlice*i - Math.PI/2); })
-		.attr("cy", function(d,i){ return rScale(d.value) * Math.sin(angleSlice*i - Math.PI/2); })
-		.style("fill", "none")
-		.style("pointer-events", "all")
-		.on("mouseover", function(d,i) {
-			newX =  parseFloat(d3.select(this).attr('cx')) - 10;
-			newY =  parseFloat(d3.select(this).attr('cy')) - 10;
+	// //Append a set of invisible circles on top for the mouseover pop-up
+	// blobCircleWrapper.selectAll(".radarInvisibleCircle")
+	// 	.data(function(d,i) { return d; })
+	// 	.enter().append("circle")
+	// 	.attr("class", "radarInvisibleCircle")
+	// 	.attr("r", cfg.dotRadius*1.5)
+	// 	.attr("cx", function(d,i){ return rScale(d.value) * Math.cos(angleSlice*i - Math.PI/2); })
+	// 	.attr("cy", function(d,i){ return rScale(d.value) * Math.sin(angleSlice*i - Math.PI/2); })
+	// 	.style("fill", "none")
+	// 	.style("pointer-events", "all")
+	// 	.on("mouseover", function(d,i) {
+	// 		newX =  parseFloat(d3.select(this).attr('cx')) - 10;
+	// 		newY =  parseFloat(d3.select(this).attr('cy')) - 10;
 					
-			tooltip
-				.attr('x', newX)
-				.attr('y', newY)
-				.text(Format(d.value))
-				.transition().duration(200)
-				.style('opacity', 1);
-		})
-		.on("mouseout", function(){
-			tooltip.transition().duration(200)
-				.style("opacity", 0);
-		});
+	// 		tooltip
+	// 			.attr('x', newX)
+	// 			.attr('y', newY)
+	// 			.text(Format(d.value))
+	// 			.transition().duration(200)
+	// 			.style('opacity', 1);
+	// 	})
+	// 	.on("mouseout", function(){
+	// 		tooltip.transition().duration(200)
+	// 			.style("opacity", 0);
+	// 	});
 		
-	//Set up the small tooltip for when you hover over a circle
-	var tooltip = g.append("text")
-		.attr("class", "tooltip")
-		.style("opacity", 0);
+	// //Set up the small tooltip for when you hover over a circle
+	// var tooltip = g.append("text")
+	// 	.attr("class", "tooltip")
+	// 	.style("opacity", 0);
 	
 	/////////////////////////////////////////////////////////
 	/////////////////// Helper Function /////////////////////
