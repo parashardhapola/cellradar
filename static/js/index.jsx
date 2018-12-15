@@ -3,7 +3,7 @@ class DatasetSelect extends React.Component {
         super()
         this.state = {'datasets': []}
     }
-    componentWillMount () {
+    componentDidMount () {
         console.log('Fetching Datatset')
         fetch('/getdatasets')
             .then(response => response.json())
@@ -42,7 +42,7 @@ class GeneBox extends React.Component {
 class AppendCheckBox extends React.Component {
     constructor () {
         super()
-        this.state = {'checked': false}
+        this.state = {'checked': true}
     }
     handleClick () {
         this.state.checked = !this.state.checked
@@ -51,7 +51,7 @@ class AppendCheckBox extends React.Component {
     render() {
         console.log('Rendering AppendCheckBox')
         return (
-            <input type="checkbox"
+            <input type="checkbox" defaultChecked={this.state.checked}
                 onInput={(e) => this.handleClick()}/>
         )   
     }
@@ -68,8 +68,9 @@ class InputStore extends React.Component {
                 callBackFunc={v => this.props.callBackFunc(v, 'selectedDataset')} />,
             document.getElementById("DatasetSelectComp"))
         ReactDOM.render(
-            <GeneBox uid={this.props.uid} height={window.innerHeight*0.4 + 'px'} width={"150px"}
-                     callBackFunc={v => this.props.callBackFunc(v, 'inputGenes')} />,
+            <GeneBox uid={this.props.uid}
+                    height={this.props.geneBoxHeight} width={this.props.geneBoxWidth}
+                    callBackFunc={v => this.props.callBackFunc(v, 'inputGenes')} />,
             document.getElementById("GeneBoxComp"))
         ReactDOM.render(
             <AppendCheckBox
@@ -97,68 +98,126 @@ class SubmitButton extends React.Component {
 class SvgDownload extends React.Component {
     constructor () {
         super()
-        this.state = {'svg': null, 'png': null}
+        this.state = {'svg': null}
     }
     componentDidUpdate () {
-        console.log('Making PNG')
         var svgContainer =  document.querySelector('svg')
-        if (svgContainer != null) {
-            console.log('svg exists')
+        if (svgContainer == null) {
+            if (this.state.svg != null) {
+                this.setState({'svg': null})
+            }
+        } else {
             var svgString = 'data:image/svg+xml;base64,' +  btoa(
                 new XMLSerializer().serializeToString(svgContainer))
-            if (svgString != this.state.svg) {
-                this.state.svg = svgString
-                var canvas = document.createElement('canvas')
-                canvas.width = 550*3
-                canvas.height = 500*3
-                var ctx = canvas.getContext('2d')
-                ctx.scale(3,3)
-                var img = new Image()
-                img.onload = () => {
-                    ctx.drawImage(img, 0, 0)
-                    this.setState({'png': canvas.toDataURL()})
-                }
-                img.src = svgString
+            if (this.state.svg != svgString) {
+                 this.setState({'svg': svgString})
             }
         }
     }
-    handleClick (v) {
-        var a = document.createElement('a');
-        a.href = this.state[v]
-        a.download = 'CellRadar.' + v
+    handleDownload(data, ext) {
+        var a = document.createElement('a')
+        a.href = data
+        a.download = 'CellRadar.' + ext
         a.click()
+    }
+    handlePngClick () {
+        var canvas = document.createElement('canvas')
+        canvas.width = 550*3
+        canvas.height = 500*3
+        var ctx = canvas.getContext('2d')
+        ctx.scale(3,3)
+        var img = new Image()
+        img.onload = () => {
+            ctx.drawImage(img, 0, 0)
+            this.handleDownload(canvas.toDataURL(), 'png')
+        }
+        img.src = this.state.svg
     }
     render () {
         console.log ('Rendering SvgDownload')
         return (
-            <div className="row">
-                <div className='col-5'>
+            <div>
                 {this.state.svg != null ?
-                    <button className="btn btn-secondary" onClick={(e) => this.handleClick('svg')}>Download SVG</button>:
+                    <button className="btn btn-secondary" style={{'margin-right': '5px'}}
+                            onClick={(e) => this.handleDownload(this.state.svg, 'svg')}>
+                        SVG
+                    </button>:
                     <a></a>
                 }
-                </div><div className='col-2'></div>
-                <div className='col-5'>
-                {this.state.png != null ?
-                    <button className="btn btn-secondary" onClick={(e) => this.handleClick('png')}>Download PNG</button>:
+                {this.state.svg != null ?
+                    <button className="btn btn-secondary"
+                            onClick={(e) => this.handlePngClick()}>
+                        PNG
+                    </button>:
                     <a></a>
                 }
-                </div>
             </div>
         )
     }
 }
 
 class CustomLegend extends React.Component {
+    constructor () {
+        super()
+        this.state = {'colors': []}
+    }
+    handleChange () {
+        console.log(this.state)
+    }
+    getColors () {
+        var colors = []
+        var radar_area = d3.selectAll('.radarArea')[0]
+        for (var i in radar_area) {
+            if (i != 'parentNode') {
+                colors.push(radar_area[i].style.fill)
+            }
+        }
+        return colors
+    }
     render () {
-        var svg = d3.select("svg").node()
-        if (svg != null) {
-            var svgContainer = d3.select("svg")    
-            var circle = svgContainer.append("circle")
-                .attr("cx", 30)
-                .attr("cy", 30)
+        this.state.colors = this.getColors()
+        if (d3.select("svg").node() != null) {
+            console.log(this.state)
+            var g = d3.select("svg").append('g')
+                .attr("transform", "translate(" + 550 + "," + 100 + ")")
+            g.selectAll("circle")
+                .data(this.state.colors)
+                .enter()
+                .append("circle")
                 .attr("r", 10)
-                .attr("transform", "translate(" + svg.getBBox().width + "," + 200 + ")");
+                .attr("cy", (d,i) => {return 30*i})
+                .attr("cx", 0)
+                .attr("fill", d => {return d})
+                .on("mouseover", function (d,i) {
+                    d3.select(this).transition().duration(200).attr({r: 15})
+                    d3.selectAll(".radarArea")
+                        .transition().duration(200)
+                        .style("fill-opacity", 0.1)
+                    d3.selectAll(".radarStroke")
+                        .transition().duration(200)
+                        .style("stroke-width", 0)
+                    d3.selectAll(".radarCircle")
+                        .transition().duration(200)
+                        .style("r", 0)
+                    d3.select(d3.selectAll('.radarArea')[0][i])
+                        .transition().duration(200)
+                        .style("fill-opacity", 0.7)
+                })
+                .on("mouseout", function (d,i) {
+                    d3.select(this).transition().duration(200).attr({r: 10})
+                    d3.selectAll(".radarArea")
+                        .transition().duration(200)
+                        .style("fill-opacity", 0.7)
+                    d3.selectAll(".radarStroke")
+                        .transition().duration(200)
+                        .style("stroke-width", 2)
+                    d3.selectAll(".radarCircle")
+                        .transition().duration(200)
+                        .style("r", 2)
+                })
+                .on("click", function (d, i) {
+                    d3.select(this).moveToFront();
+                })
         }
         return null
     }
@@ -167,40 +226,48 @@ class CustomLegend extends React.Component {
 class RadarStore extends React.Component {
     constructor () {
         super()
-        this.state = {'radarData': [], 'width': null }
+        this.state = {'radarData': [], 'info': []}
+    }
+    componentDidUpdate () {
+        if (this.props.data == '') {
+            console.log('Will not touch chart')
+        } else {
+            d3.select(this.props.radarId).select("svg").remove()
+            if (this.props.data != null) {
+                if (this.props.doOverlay) {
+                    this.state.radarData.push(this.props.data)
+                    this.state.info.push({
+                        'name': 'List ' + this.state.info.length + 1,
+                        'color': null
+                    })
+                } else {
+                    this.state.radarData = [this.props.data]
+                    this.state.info = [{'name': 'List 1', 'color': null}]
+                }
+                this.renderChart()
+            }  else {
+                console.log('Will not make chart, scrap data')
+                this.state.radarData = [] // Scrap existing data
+                this.state.info = []
+            }
+            this.setState()
+        }
     }
     renderChart () {
         console.log('Making chart')
-        var radar_bb = document.querySelector(this.props.chartId).getBoundingClientRect()
-        var input_bb = document.querySelector(this.props.inputboxId).getBoundingClientRect()
-        var radar_width = radar_bb.right - radar_bb.left
-        var input_height = input_bb.bottom - input_bb.top
-        var plot_wh = Math.min(radar_width*0.7, input_height)
-        this.state.width = plot_wh
-        RadarChart("#RadarChart", this.state.radarData, {
-            'w': plot_wh*0.8,
-            'h': plot_wh*0.8,
-            'margin': {'top': plot_wh*0.1, 'right': radar_width-plot_wh,
-                       'bottom': plot_wh*0.1, 'left': plot_wh*0.2}
+        RadarChart(this.props.radarId, this.state.radarData, {
+            'w': this.props.radarWidth,
+            'h': this.props.radarWidth,
+            'margin': this.props.radarMargin
         })
-        // this.pngCreator()
     }
     render () {
         console.log('Rendering RadarStore')
-        if (this.props.data != null) {
-             if (this.props.doOverlay) {
-                this.state.radarData.push(this.props.data)
-            }
-            else {
-                this.state.radarData = [this.props.data]
-            }
-            this.renderChart()
-        }
         ReactDOM.render(
             <SvgDownload />,
                 document.getElementById("SvgDownloadComp"))
         ReactDOM.render(
-            <CustomLegend />,
+            <CustomLegend info={this.state.info} />,
             document.getElementById("CustomLegendEntry"))
         return null
     }
@@ -211,12 +278,34 @@ class App extends React.Component {
         super()
         this.state = {
             'geneBoxid': 'geneBox1', 'selectedDataset': '', 'inputGenes': [],
-            'SubmitButtonDisabled': false, 'radarData': null, 'doOverlay': false,
+            'SubmitButtonDisabled': false, 'radarData': '', 'doOverlay': true,
+            'inputId': 'InputStoreEntry', 'radarId': '#RadarChart', 
+            'geneBoxHeight': null, 'geneBoxWidth': null,
+            'radarMargin': null, 'radarWidth': null
         }
+        this.makeDimensions()
+    }
+    componentDidUpdate () {
+        this.state.radarData = ''
+    }
+    makeDimensions () {
+        var radar_bb = document.querySelector(this.state.radarId).getBoundingClientRect()
+        var radar_bb_width = radar_bb.right - radar_bb.left
+        var radar_height =  Math.min(window.outerHeight*0.7, radar_bb_width)
+
+        this.state.radarWidth = 0.7*radar_bb_width
+        this.state.radarMargin = {
+            'top': radar_bb_width*0.1, 'bottom': radar_bb_width*0.1, 
+            'left': radar_bb_width*0.2,
+            'right': radar_bb_width*0.1 + radar_bb_width-this.state.radarWidth, 
+        }
+        this.state.geneBoxHeight = this.state.radarWidth*0.91 + 'px'
+        this.state.geneBoxWidth = '150px'
+        console.log(this.state)
     }
     fetchRadarData () {
         console.log('Fetching radarData')
-        this.setState({'SubmitButtonDisabled': true, 'radarData': null})
+        this.setState({'SubmitButtonDisabled': true})
         const req_data = {
             method: "POST",
             headers: {"Content-Type": "application/json; charset=utf-8"},
@@ -235,8 +324,8 @@ class App extends React.Component {
             this.setState({'SubmitButtonDisabled': false, 'radarData': data})
         }
         else {
-            this.setState({'SubmitButtonDisabled': false, 'radarData': null})
-            console.log(r.msg)
+            alert (r.msg)
+            this.setState({'SubmitButtonDisabled': false})
         }
     }
     handleInputUpdate (v, s) {
@@ -255,9 +344,12 @@ class App extends React.Component {
         return (
             <div>
                 <InputStore uid={this.state.geneBoxid}
-                            callBackFunc={(v, s) => this.handleInputUpdate(v, s)} />
+                    callBackFunc={(v, s) => this.handleInputUpdate(v, s)} 
+                    geneBoxHeight={this.state.geneBoxHeight}
+                    geneBoxWidth={this.state.geneBoxWidth} />
                 <RadarStore data={this.state.radarData} doOverlay={this.state.doOverlay}
-                            chartId={'#RadarChart'} inputboxId={'#InputBox'} />
+                    radarId={this.state.radarId} radarMargin={this.state.radarMargin}
+                    radarWidth={this.state.radarWidth} />
             </div>
         )
     }

@@ -15,6 +15,12 @@ function RadarChart(id, data, options) {
 	 color: d3.scale.category10()	//Color function
 	};
 	
+	d3.selection.prototype.moveToFront = function() {  
+      return this.each(function(){
+        this.parentNode.appendChild(this);
+      });
+    }
+    
 	//Put all of the options into a variable called cfg
 	if('undefined' !== typeof options){
 	  for(var i in options){
@@ -41,9 +47,6 @@ function RadarChart(id, data, options) {
 	/////////////////////////////////////////////////////////
 	//////////// Create the container SVG and g /////////////
 	/////////////////////////////////////////////////////////
-
-	//Remove whatever chart with the same id/class was present before
-	d3.select(id).select("svg").remove();
 	
 	//Initiate the radar chart SVG
 	var svg = d3.select(id).append("svg")

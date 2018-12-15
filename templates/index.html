@@ -36,32 +36,32 @@
 					</div>
 					<br />
 					<div class='row'>
-						<div class='col-3' id='InputBox'>	
+						<div class='col-3' id='InputStoreEntry'>	
 							<p><b>Paste gene symbols</b><br /><small>(One gene per line)</small></p>
 							<div id='GeneBoxComp'></div>
-							<p><small><i>Invalid genes are removed</i></small></p>
-
+							<p style="margin-bottom:5px;">
+								<small><i>Invalid genes are removed</i></small>
+							</p>
 							<div style="vertical-align:middle;display:inline;"
-								 id="AppendCheckBoxComp"></div>
-							<small>Overlay data</small>
-
-							<br />
-							<br />
-							<div id="SubmitButtonComp"></div>
+								 id="AppendCheckBoxComp">
+							</div>
+							<b>Overlay data</b>
+							<div style="margin-top:5px;" id="SubmitButtonComp"></div>
 						</div>
 
 						<div class='col-9'>
-							<div id="RadarChart"></div>
+							<div class='row'>
+								<div class='col-9'>
+									<div id="RadarChart"></div>
+									<div id="CustomLegendEntry"></div>
+								</div>
+							</div>
+							<div class='row'>
+								<div class='col-12'>
+									<div id="SvgDownloadComp"></div>
+								</div>
+							</div>
 						</div>
-					</div>
-
-					<div class='row'>
-						<div class='col-3'></div>
-						<div class='col-3'>
-							<div id="SvgDownloadComp"></div>
-							<div id="CustomLegendEntry"></div>
-						</div>
-						<div class='col-5'></div>
 					</div>
 
 				</div>
