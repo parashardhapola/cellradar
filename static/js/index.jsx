@@ -5,7 +5,7 @@ class DatasetSelect extends React.Component {
     }
     componentDidMount () {
         console.log('Fetching Datatset')
-        fetch('/getdatasets')
+        fetch('/cellradar/getdatasets')
             .then(response => response.json())
             .then(r => {
                 this.setState({'datasets': r['datasets']})
@@ -575,7 +575,7 @@ class App extends React.Component {
                 'dataset': this.state.selectedDataset,
                 'genes': this.state.inputGenes})        
         }
-        fetch('/makeradar', req_data)
+        fetch('/cellradar/makeradar', req_data)
             .then(response => response.json())
             .then(r => this.handleRadarData(r))
     }

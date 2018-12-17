@@ -64,22 +64,24 @@ DATAFILES = {
 
 app = Flask(__name__)
 
-@app.route("/")
+
+@app.route("/cellradar")
 def index():
     return render_template('index.html',
      randstr='?rand%d' % np.random.randint(1e8))
 
-@app.route("/getdatasets", methods=['GET'])
+@app.route("/cellradar/getdatasets", methods=['GET'])
 def get_datasets():
     return jsonify({
         'datasets': [{'id': 'dataset%d' % n, 'value': x } for n,x in
                      enumerate(DATAFILES.keys(), 1)],
     })
 
-@app.route("/makeradar", methods=['POST'])
+@app.route("/cellradar/makeradar", methods=['POST'])
 def make_radar():
     data = request.get_json()
     return jsonify(prep_data(data['dataset'], data['genes']))
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=10751)
