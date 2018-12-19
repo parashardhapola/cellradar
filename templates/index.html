@@ -11,9 +11,7 @@
 	</head>
 	<body>
 		<div id="AppEntryPoint"></div>
-
-		<div class="container">
-				
+		<div class="container-fluid">
 			<nav class="navbar navbar-default" 
 				 style="border-radius:10px;background:#ededed;
 						margin-top:10px;margin-bottom:10px;">
@@ -21,8 +19,6 @@
 				  <a class="navbar-brand">CellRadar</a>
 				</div>
 			</nav>
-
-
 			<div class='row'>
 				<div class='col-1'></div>
 				<div class='col-11'>
@@ -66,12 +62,12 @@
 
 			<br />
 		</div>
-		<!-- <div style="position:fixed;margin-top:10px;margin-bottom:10px;
+<!-- 		<div style="position:fixed;margin-top:10px;margin-bottom:10px;
 					bottom:0;left:0;right:0;width:100%;
 					text-align:center;background:#ededed;vertical-align:middle;">
 			<p>Stem Cells and Leukemia Lab, Faculty of Medicine, Lund University</p>
 		</div> -->
-
-		<script type="text/jsx" src="static/js/index.jsx?{{randstr}}"></script>
+		<script type="text/jsx" src="{{ url_for('static', filename='radar.js') + randstr}}"></script>
+		<script type="text/jsx" src="{{ url_for('static', filename='index.jsx') + randstr}}"></script>
 	</body>
 </html>
