@@ -83,15 +83,13 @@ class SubmitButton extends React.Component {
 class SvgDownload extends React.Component {
     makeSvg () {
         if (document.querySelector('svg') != null) {
-            const dummysvg = d3.select('body')
-                            .append('div')
-                            .attr('class', 'dummydivfordownload')
-                            .html(d3.select('svg')[0][0].outerHTML)
-            dummysvg.select('.closeWrapper')[0][0].remove()
-            dummysvg.select('.hideWrapper')[0][0].remove()
+            // let x = d3.select('.sideInfoWrapper')[0][0].children
+            // Array.from(x).forEach(function (i) {i.remove()})
             const svgString = 'data:image/svg+xml;base64,' +  btoa(
-                new XMLSerializer().serializeToString(dummysvg.node()))
-            d3.selectAll('.dummydivfordownload').remove()
+                new XMLSerializer().serializeToString(document.querySelector('svg')))
+            // this.props.displayedData.forEach(i => {
+            //     this.props.plotSideInfo(i)
+            // })
             return svgString
         }
     }
@@ -105,16 +103,16 @@ class SvgDownload extends React.Component {
         console.log('Making PNG')
         const canvas = document.createElement('canvas')
         canvas.width = 3*(this.props.radarWidth+
-                          this.props.radarMargin.left+
-                          this.props.radarMargin.right)
+                          this.props.radarMargins.left+
+                          this.props.radarMargins.right)
         canvas.height = 3*(this.props.radarWidth+
-                           this.props.radarMargin.top+
-                           this.props.radarMargin.bottom)
+                           this.props.radarMargins.top+
+                           this.props.radarMargins.bottom)
         const ctx = canvas.getContext('2d')
         ctx.scale(3,3)
         const img = new Image()
         img.src = this.makeSvg()
-        img.onload = function() {
+        img.onload = () => {
             console.log('PNG loaded')
             console.log(canvas)
             ctx.drawImage(img, 0, 0)
@@ -125,29 +123,17 @@ class SvgDownload extends React.Component {
         this.handleDownload(this.makeSvg(), 'svg')
     }
     render () {
-        if (document.querySelector('svg') == null) {
-            const showbuttons = false
-        }
-        else {
-            const showbuttons = true   
-        }
         console.log ('Rendering SvgDownload')
         return (
             <div>
-                {showbuttons  ?
-                    <button className="btn btn-secondary" style={{'margin-right': '5px'}}
-                            onClick={(e) => this.handleSvgClick()}>
-                        SVG
-                    </button>:
-                    <a></a>
-                }
-                {showbuttons ?
-                    <button className="btn btn-secondary"
-                            onClick={(e) => this.handlePngClick()}>
-                        PNG
-                    </button>:
-                    <a></a>
-                }
+                <button className="btn btn-secondary" style={{'margin-right': '5px'}}
+                        onClick={(e) => this.handleSvgClick()}>
+                    SVG
+                </button>
+                <button className="btn btn-secondary"
+                        onClick={(e) => this.handlePngClick()}>
+                    PNG
+                </button>
             </div>
         )
     }
@@ -161,13 +147,12 @@ class App extends React.Component {
             'datasets': [], 'cells': [],
             'selectedDataset': '', 'inputGenes': [],
             'SubmitButtonDisabled': false, 'doOverlay': true,
-            'radarData': [], 'genes': [], 'uidCounter': 0,
-            'displayOrder': [], 'hiddenStatus': {},
-            'colors' : {}, 'availColors' : [...Array(10).keys()].map(i => parseInt(i)),
+            'genes': {}, 'uidCounter': 0,
+            'displayedData': [], 'displayInfo': {},
+            'availColors' : [...Array(10).keys()].map(i => parseInt(i)),
             'inputId': 'InputStoreEntry', 
             'geneBoxHeight': null, 'geneBoxWidth': null,
             'radarMargins': null, 'radarWidth': null,
-            'svg': null, 'groups': {}, 
             'pallete' : [
                 d3.rgb(76, 120, 168), d3.rgb(245, 133, 24),
                 d3.rgb(228, 87, 86), d3.rgb(114, 183, 178),
@@ -177,11 +162,8 @@ class App extends React.Component {
         }
         this.makeDimensions()
         this.fetchDatasets()
-        const retval = initializeSvg(this.state.radarId, this.state.radarWidth, this.state.radarMargins)
-        this.state.svg = retval[0]
-        this.state.groups.mainG = retval[1]
-        this.state.groups.hideCloseG = retval[2]
-        this.state.groups.legendG = retval[3]
+        initializeSvg(this.state.radarId,
+            this.state.radarWidth, this.state.radarMargins)
     }
     makeDimensions () {
         const input_store = document.querySelector('#InputStoreEntry').getBoundingClientRect()
@@ -205,17 +187,24 @@ class App extends React.Component {
             .then(response => response.json())
             .then(r => {
                 this.state.selectedDataset = r.datasets[0].value
-                this.fetchCellsAndPlotAxis()
+                this.fetchCells()
                 this.setState({'datasets': r.datasets})
             })
     }
     handleInputUpdate (v, s) {
         this.state[s] = v
         if (s == 'selectedDataset') {
-            this.fetchCellsAndPlotAxis()
+            this.fetchCells()
+            console.log(this.state)
+            if (this.state.doOverlay) {
+                this.state.displayedData.forEach(uid => {
+                    console.log(uid)
+                    this.fetchRadarData(this.state.genes[uid].raw, uid)
+                })
+            }
         }
     }
-    fetchCellsAndPlotAxis () {
+    fetchCells () {
         console.log('Fetching Cells')
         const req_data = {
             method: "POST",
@@ -227,14 +216,25 @@ class App extends React.Component {
             .then(r => {
                 if (r['msg'] == 'OK') {
                     this.state.cells = r.cells
-                    plotAxis(this.state.groups.mainG, this.state.cells,
-                        this.state.radarWidth)
-                    this.state.radarData = []
+                    plotAxis(this.state.cells, this.state.radarWidth)
                 }
                 else { alert (r.msg) }
             })
     }
-    fetchRadarData (gene_list) {
+    resetSvgAndState () {
+        console.log('Resetting SVG and state')
+        resetSvgData()
+        this.setState({
+            'genes': {}, 'uidCounter': 0,
+            'displayedData': [], 'displayInfo': {},
+            'availColors' : [...Array(10).keys()].map(i => parseInt(i)),    
+        })
+    }
+    fetchRadarData (gene_list, replotUid) {
+        if (this.state.displayedData.length == 10) {
+            alert ('Only upto 10 datatsets can be loaded at a time!')
+            return false
+        }
         console.log('Fetching radarData')
         this.setState({'SubmitButtonDisabled': true})
         const req_data = {
@@ -242,50 +242,87 @@ class App extends React.Component {
             headers: {"Content-Type": "application/json; charset=utf-8"},
             body: JSON.stringify({
                 'dataset': this.state.selectedDataset,
-                'genes': gene_list})        
+                'genes': gene_list})
         }
         fetch('/cellradar/makeradar', req_data)
             .then(response => response.json())
             .then(r => {
                 if (r.msg == 'OK') {
                     document.getElementById(this.state.geneBoxid).value = r.genes
-                    this.state.genes.push(r.genes)
-                    this.state.radarData.push(r.values[0])
-                    this.state.uidCounter += 1
-                    this.state.displayOrder.push(this.state.uidCounter)
-                    this.state.hiddenStatus[this.state.uidCounter] = false
-                    this.state.colors[this.state.uidCounter] = this.state.pallete[this.state.availColors.shift()]
-                    console.log(this.state)
-                    plotRadar(
-                        this.state.groups.mainG, this.state.uidCounter,  r.values[0],
-                        this.state.colors[this.state.uidCounter],
-                        this.state.cells.length, this.state.radarWidth,
-                        (event,uid) => coordinateHighlight(
-                            uid, event, this.state.hiddenStatus, this.state.displayOrder)
-                    )
-                    makeHideToggle (
-                        this.state.groups.hideCloseG, this.state.uidCounter,
-                        this.state.displayOrder.length*20,
-                        (i) => {
-                            this.state.hiddenStatus[i] = !this.state.hiddenStatus[i]
-                            coordinateVisibility(i)
+                    if (replotUid != null) {
+                        console.log('PLotting radar only')
+                        this.plotRadarData(r.values[0], replotUid)
+                        toggleVisibility(replotUid)
+                    }
+                    else {
+                        console.log('Plotting full thingy')
+                        if (this.state.doOverlay == false) {
+                            this.resetSvgAndState()
+                        }                   
+                        this.state.uidCounter += 1
+                        this.state.genes[this.state.uidCounter] = {
+                            'raw': gene_list, 'filtered': r.genes
                         }
-                    )
-                    makeCloseButton (
-                        this.state.groups.hideCloseG, this.state.uidCounter,
-                        this.state.displayOrder.length*20,
-                        (i) => {}
-                    )
-                    
+                        this.state.displayInfo[this.state.uidCounter] = {
+                            'color' : this.state.pallete[this.state.availColors.shift()],
+                            'hidden': false,
+                            'label': 'List ' + this.state.uidCounter
+                        }
+                        this.state.displayedData.push(this.state.uidCounter)
+                        this.plotRadarData(r.values[0], this.state.uidCounter)
+                        this.plotSideInfo(this.state.uidCounter)
+                    }
                 }
                 else { alert (r.msg) }
                 this.setState({'SubmitButtonDisabled': false})
         })
     }
+    plotRadarData (data, uid) {
+        plotRadar(
+            uid, data,
+            this.state.displayInfo[uid].color,
+            this.state.cells.length, this.state.radarWidth,
+            (i, e) => coordinateHighlight(
+                i, e, this.state.displayInfo, this.state.displayedData)
+        )
+    }
+    plotSideInfo (uid) {
+        const ypos = this.state.displayedData.indexOf(uid)*this.state.radarWidth/10
+        addSideGroup(uid)
+        makeCloseButton (
+            uid, ypos, (i, e) => toggleCloseBtn(i, e),
+            i => {
+                this.state.availColors.push(this.state.displayInfo[uid].color)
+                this.state.displayedData = this.state.displayedData
+                    .filter((x) => {return x!=i})
+                removePlot(i)
+                this.state.displayedData.forEach(i => {
+                    this.plotSideInfo(i)
+                })
+            }
+        )
+        makeHideToggle (
+            uid, ypos,
+            (i) => {
+                this.state.displayInfo[uid].hidden = 
+                    !this.state.displayInfo[uid].hidden
+                toggleVisibility(i)
+            }
+        )
+        makeLegend(
+            uid, ypos, 50, this.state.radarWidth/35,
+            this.state.displayInfo[uid].label, this.state.displayInfo[uid].color,
+            (i, e) => coordinateHighlight(
+                i, e, this.state.displayInfo, this.state.displayedData),
+            (text) => {
+                this.state.displayInfo[uid].label = text
+            }
+        )
+    }
     render () {
         ReactDOM.render(
             <SubmitButton isDisabled={this.state.SubmitButtonDisabled}
-                          callBackFunc={() => this.fetchRadarData(this.state.inputGenes)} />,
+                          callBackFunc={() => this.fetchRadarData(this.state.inputGenes, null)} />,
             document.getElementById("SubmitButtonComp"))
         
         ReactDOM.render(
@@ -304,6 +341,11 @@ class App extends React.Component {
             <AppendCheckBox
                 callBackFunc={(v) => this.handleInputUpdate(v, 'doOverlay')}/>,
             document.getElementById("AppendCheckBoxComp"))
+
+        ReactDOM.render(
+            <SvgDownload radarWidth={this.state.radarWidth}
+                radarMargins={this.state.radarMargins} />,
+            document.getElementById("SvgDownloadComp"))
         
         return null
     }
