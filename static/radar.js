@@ -48,14 +48,16 @@ function coordinateHighlight (i, event, hiddenData, allUid) {
 }
 
 function toggleVisibility (i) {
-    let x = d3.select('.radarWrapper' + i)
-    const checked = d3.select('.hideBtn' + i)[0][0].checked
-    if (checked) {
-        toggleHighlight(i, radarCfg.opacity.base,
-            radarCfg.stroke.base, radarCfg.radiusDot.base, 0)
-    }
-    else {
-        toggleHighlight(i, 0, 0, 0, 0)
+    let x = d3.select('.hideBtn' + i)[0][0]
+    if (x != null) {
+        const checked = x.checked
+        if (checked) {
+            toggleHighlight(i, radarCfg.opacity.base,
+                radarCfg.stroke.base, radarCfg.radiusDot.base, 0)
+        }    
+        else {
+            toggleHighlight(i, 0, 0, 0, 0)
+        }
     }
 }
 
@@ -69,10 +71,15 @@ function toggleCloseBtn (i, event) {
     }
 }
 
+function removeBlocks(blocks) {
+    blocks.forEach((i) => {
+        let x = d3.select('.' + i)[0][0].children
+        Array.from(x).forEach(function (i) {i.remove()})
+    })
+}
+
 function removePlot (i) {
     d3.select('.radarWrapper' + i).remove()
-    let x = d3.select('.sideInfoWrapper')[0][0].children
-    Array.from(x).forEach(function (i) {i.remove()})
 }
 
 function bringToFront(i) {
@@ -112,7 +119,6 @@ function textWrap(text, width) {
 }
 
 function initializeSvg (id, figwidth, margins) {
-    console.log('Initialize SVG')
     d3.select(id).select("svg").remove()
     let svg = d3.select(id).append("svg")
         .attr("width",  figwidth + margins.left + margins.right)
@@ -132,6 +138,12 @@ function initializeSvg (id, figwidth, margins) {
             (figwidth/2 + margins.left) + 
             "," + (figwidth/2 + margins.top) + ")")
         .attr('class', 'mainG')
+    d3.select('.mainG')
+        .append("g")
+        .attr("class", "axisWrapper")
+    d3.select('.mainG')
+        .append("g")
+        .attr("class", "plotWrapper")
     svg.append("g")
         .attr("class", "sideInfoWrapper")
         .attr("transform", "translate(" + 
@@ -139,27 +151,14 @@ function initializeSvg (id, figwidth, margins) {
             "," + margins.top + ")")
 }
 
-function resetSvgData () {
-    d3.selectAll('.plotWrapper').remove()
-    d3.select('.mainG')
-        .append("g")
-        .attr("class", "plotWrapper")
-    let x = d3.select('.sideInfoWrapper')[0][0].children
-    Array.from(x).forEach(function (i) {i.remove()})
-}
-
 function plotAxis(axisNames, figwidth) {
-    console.log('Making Axis')
     var radius = Math.min(figwidth/2, figwidth/2)
     var angleSlice = Math.PI * 2 / axisNames.length
     var rScale = d3.scale.linear()
         .range([0, radius])
         .domain([0, 1])
     
-    d3.selectAll('.axisWrapper').remove()
-    var axisGrid = d3.select('.mainG')
-                    .append("g")
-                    .attr("class", "axisWrapper")
+    var axisGrid = d3.select('.axisWrapper')
     axisGrid.selectAll(".levels")
        .data(d3.range(1,(5+1)).reverse())
        .enter()
@@ -196,15 +195,9 @@ function plotAxis(axisNames, figwidth) {
             Math.sin(angleSlice*i - Math.PI/2)})
         .text(function(d){return d})
         .call(textWrap, figwidth/5)
-    
-    d3.selectAll('.plotWrapper').remove()
-    d3.select('.mainG')
-        .append("g")
-        .attr("class", "plotWrapper")
 }
 
 function plotRadar(uid, data, color, numCells, figwidth, callBackFunc) {
-    console.log('Plotting Radar Area')
     var radius = Math.min(figwidth/2, figwidth/2)
     var angleSlice = Math.PI * 2 / numCells
     var rScale = d3.scale.linear()
@@ -245,7 +238,8 @@ function plotRadar(uid, data, color, numCells, figwidth, callBackFunc) {
             .style("fill-opacity", 0.8)
 }
 
-function addSideGroup (uid) {
+function makeSideGroup (uid) {
+    d3.select(".sideGroup" + uid).remove()
     d3.select('.sideInfoWrapper')
         .append("g")
         .attr("class", "sideGroup" + uid)
@@ -282,7 +276,7 @@ function makeCloseButton (uid, ypos, callBackAni, callBackRem) {
                 .on("click", function() {callBackRem(uid)})
 }
 
-function makeHideToggle (uid, ypos, callBackFunc) {
+function makeHideToggle (uid, ypos, isHidden, callBackFunc) {
     d3.select(".sideGroup" + uid)
         .append("foreignObject")
         .attr("x", radarCfg.radiusCloseBtn.base*2)
@@ -292,7 +286,7 @@ function makeHideToggle (uid, ypos, callBackFunc) {
         .append('input')
         .attr('class', 'hideBtn' + uid)
         .attr('type', 'checkbox')
-        .property('checked', true)
+        .property('checked', !isHidden)
         .on("click", function() {callBackFunc(uid)})
 }
 

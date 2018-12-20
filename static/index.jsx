@@ -9,7 +9,7 @@ class DatasetSelect extends React.Component {
         console.log('Rendering DatasetSelect')
         return (
             <select style={{"font-size": this.props.fontsize}}
-                onInput={e => this.props.callBackFunc(e.target.value)}>
+                onChange={e => this.props.callBackFunc(e.target.value)}>
                 {this.props.datasets.map(item => (
                     <option key={item.id}>{item.value}</option>
                 ))}
@@ -27,6 +27,9 @@ class GeneBox extends React.Component {
     }
     render () {
         console.log('Rendering GeneBox')
+        console.log(
+            this.props.width, this.props.height
+        )
         return (
             <textarea id={this.props.id} 
                 style={{'width':this.props.width, 'height':this.props.height}}
@@ -113,8 +116,6 @@ class SvgDownload extends React.Component {
         const img = new Image()
         img.src = this.makeSvg()
         img.onload = () => {
-            console.log('PNG loaded')
-            console.log(canvas)
             ctx.drawImage(img, 0, 0)
             this.handleDownload(canvas.toDataURL(), 'png')
         }
@@ -149,7 +150,7 @@ class App extends React.Component {
             'SubmitButtonDisabled': false, 'doOverlay': true,
             'genes': {}, 'uidCounter': 0,
             'displayedData': [], 'displayInfo': {},
-            'availColors' : [...Array(10).keys()].map(i => parseInt(i)),
+            'availColors' : null,
             'inputId': 'InputStoreEntry', 
             'geneBoxHeight': null, 'geneBoxWidth': null,
             'radarMargins': null, 'radarWidth': null,
@@ -164,11 +165,14 @@ class App extends React.Component {
         this.fetchDatasets()
         initializeSvg(this.state.radarId,
             this.state.radarWidth, this.state.radarMargins)
+        this.state.availColors = this.state.pallete
     }
     makeDimensions () {
+        console.log('Making dimensions')
+        console.log(document.querySelector('#InputStoreEntry').offsetWidth)
         const input_store = document.querySelector('#InputStoreEntry').getBoundingClientRect()
         this.state.geneBoxHeight = window.innerHeight*0.85 - input_store.bottom + 'px'
-        this.state.geneBoxWidth = input_store.clientWidth + 'px'
+        this.state.geneBoxWidth = input_store.offsetWidth + 'px'
 
         const radar_bb = document.querySelector(this.state.radarId).getBoundingClientRect()
         const radar_bb_width = radar_bb.right - radar_bb.left
@@ -186,26 +190,19 @@ class App extends React.Component {
         fetch('/cellradar/getdatasets')
             .then(response => response.json())
             .then(r => {
-                this.state.selectedDataset = r.datasets[0].value
-                this.fetchCells()
                 this.setState({'datasets': r.datasets})
+                this.handleInputUpdate('selectedDataset', r.datasets[0].value)               
             })
     }
-    handleInputUpdate (v, s) {
+    handleInputUpdate (s, v) {
+        console.log('Updating ' + s)
         this.state[s] = v
         if (s == 'selectedDataset') {
-            this.fetchCells()
-            console.log(this.state)
-            if (this.state.doOverlay) {
-                this.state.displayedData.forEach(uid => {
-                    console.log(uid)
-                    this.fetchRadarData(this.state.genes[uid].raw, uid)
-                })
-            }
+            this.handleDatasetChange()
         }
     }
-    fetchCells () {
-        console.log('Fetching Cells')
+    handleDatasetChange() {
+        console.log('Responding to updated dataset')
         const req_data = {
             method: "POST",
             headers: {"Content-Type": "application/json; charset=utf-8"},
@@ -215,25 +212,65 @@ class App extends React.Component {
             .then(response => response.json())
             .then(r => {
                 if (r['msg'] == 'OK') {
+                    console.log('Cells fetched, resetting the axis')
                     this.state.cells = r.cells
+                    removeBlocks(['axisWrapper', 'plotWrapper'])
                     plotAxis(this.state.cells, this.state.radarWidth)
+                    if (this.state.doOverlay) {
+                        console.log('Will rerender the plot with for new dataset')
+                        this.state.displayedData.forEach(uid => {
+                            this.fetchRadarData(null, uid)
+                        })
+                    }
+                    else {
+                        removeBlocks(['sideInfoWrapper'])
+                    }                   
                 }
                 else { alert (r.msg) }
             })
     }
-    resetSvgAndState () {
-        console.log('Resetting SVG and state')
-        resetSvgData()
-        this.setState({
-            'genes': {}, 'uidCounter': 0,
-            'displayedData': [], 'displayInfo': {},
-            'availColors' : [...Array(10).keys()].map(i => parseInt(i)),    
-        })
+    fetchCells () {
+        
     }
-    fetchRadarData (gene_list, replotUid) {
+    fetchRadarData (gene_list, uid) {
         if (this.state.displayedData.length == 10) {
             alert ('Only upto 10 datatsets can be loaded at a time!')
             return false
+        }
+        if (this.state.doOverlay == false) {
+            console.log('Not overlaying, resetting the data')
+            removeBlocks(['plotWrapper', 'sideInfoWrapper'])
+            this.setState({
+                'genes': {}, 'uidCounter': 0,
+                'displayedData': [], 'displayInfo': {},
+                'availColors' : this.state.pallete,    
+            })
+        }
+        if (gene_list == null) {
+            if (uid == null) {
+                console.log('ERROR :Null params in fetchRadarData')
+                return false
+            }
+            else {
+                console.log('Got saved raw gene list')
+                gene_list = this.state.genes[uid].raw
+            }
+            const rollback_active = false
+        }
+        else {
+            console.log('New genelist obtained. Updating state data')
+            this.state.uidCounter += 1
+            uid = this.state.uidCounter
+            this.state.genes[this.state.uidCounter] = {
+                'raw': gene_list, 'filtered': {}
+            }
+            this.state.displayInfo[this.state.uidCounter] = {
+                'color' : this.state.availColors.shift(),
+                'hidden': false,
+                'label': 'List ' + this.state.uidCounter
+            }
+            this.state.displayedData.push(uid)
+            const rollback_active = true
         }
         console.log('Fetching radarData')
         this.setState({'SubmitButtonDisabled': true})
@@ -249,35 +286,21 @@ class App extends React.Component {
             .then(r => {
                 if (r.msg == 'OK') {
                     document.getElementById(this.state.geneBoxid).value = r.genes
-                    if (replotUid != null) {
-                        console.log('PLotting radar only')
-                        this.plotRadarData(r.values[0], replotUid)
-                        toggleVisibility(replotUid)
-                    }
-                    else {
-                        console.log('Plotting full thingy')
-                        if (this.state.doOverlay == false) {
-                            this.resetSvgAndState()
-                        }                   
-                        this.state.uidCounter += 1
-                        this.state.genes[this.state.uidCounter] = {
-                            'raw': gene_list, 'filtered': r.genes
-                        }
-                        this.state.displayInfo[this.state.uidCounter] = {
-                            'color' : this.state.pallete[this.state.availColors.shift()],
-                            'hidden': false,
-                            'label': 'List ' + this.state.uidCounter
-                        }
-                        this.state.displayedData.push(this.state.uidCounter)
-                        this.plotRadarData(r.values[0], this.state.uidCounter)
-                        this.plotSideInfo(this.state.uidCounter)
+                    this.state.genes[uid].filtered[this.state.selectedDataset] = r.genes
+                    this.plotRadarData(r.values[0], uid)
+                    this.plotSideInfo(uid)
+                }
+                else {
+                    alert (r.msg)
+                    if (rollback_active) {
+                        this.state.displayedData.pop()
                     }
                 }
-                else { alert (r.msg) }
                 this.setState({'SubmitButtonDisabled': false})
         })
     }
     plotRadarData (data, uid) {
+        console.log('Plotting Radar area for UID: ' + uid)
         plotRadar(
             uid, data,
             this.state.displayInfo[uid].color,
@@ -285,10 +308,12 @@ class App extends React.Component {
             (i, e) => coordinateHighlight(
                 i, e, this.state.displayInfo, this.state.displayedData)
         )
+        toggleVisibility(uid)
     }
     plotSideInfo (uid) {
+        console.log('Plotting Side info for UID: ' + uid)
         const ypos = this.state.displayedData.indexOf(uid)*this.state.radarWidth/10
-        addSideGroup(uid)
+        makeSideGroup(uid)
         makeCloseButton (
             uid, ypos, (i, e) => toggleCloseBtn(i, e),
             i => {
@@ -296,13 +321,14 @@ class App extends React.Component {
                 this.state.displayedData = this.state.displayedData
                     .filter((x) => {return x!=i})
                 removePlot(i)
+                removeBlocks(['sideInfoWrapper'])
                 this.state.displayedData.forEach(i => {
                     this.plotSideInfo(i)
                 })
             }
         )
         makeHideToggle (
-            uid, ypos,
+            uid, ypos,this.state.displayInfo[uid].hidden,
             (i) => {
                 this.state.displayInfo[uid].hidden = 
                     !this.state.displayInfo[uid].hidden
@@ -328,18 +354,18 @@ class App extends React.Component {
         ReactDOM.render(
             <DatasetSelect datasets={this.state.datasets}
                 fontsize={'16px'}
-                callBackFunc={v => this.handleInputUpdate(v, 'selectedDataset')} />,
+                callBackFunc={v => this.handleInputUpdate('selectedDataset', v)} />,
             document.getElementById("DatasetSelectComp"))
         
         ReactDOM.render(
             <GeneBox id={this.state.geneBoxid}
                     height={this.state.geneBoxHeight} width={this.state.geneBoxWidth}
-                    callBackFunc={v => this.handleInputUpdate(v, 'inputGenes')} />,
+                    callBackFunc={v => this.handleInputUpdate('inputGenes', v)} />,
             document.getElementById("GeneBoxComp"))
         
         ReactDOM.render(
             <AppendCheckBox
-                callBackFunc={(v) => this.handleInputUpdate(v, 'doOverlay')}/>,
+                callBackFunc={(v) => this.handleInputUpdate('doOverlay', v)}/>,
             document.getElementById("AppendCheckBoxComp"))
 
         ReactDOM.render(
