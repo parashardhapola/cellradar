@@ -1,6 +1,6 @@
 const radarCfg = {
-    'opacity': {'base': 0.7, 'on': 0.8, 'off': 0.2},
-    'stroke': {'base': 2, 'on': 3, 'off': 0.5},
+    'opacity': {'base': 0.7, 'on': 0.8, 'off': 0.1},
+    'stroke': {'base': 2, 'on': 3, 'off': 1},
     'radiusDot': {'base': 2, 'on': 3, 'off': 0.5},
     'radiusLegend': {'base': 10, 'on': 15, 'off': 0},
     'radiusCloseBtn': {'base': 6.5, 'on': 10, 'off': 0},
@@ -15,30 +15,80 @@ function toggleHighlight (i, a, b, c, t) {
     x.selectAll('.radarCircle').style('r', c)
 }
 
-function coordinateHighlight (i, event, hiddenData, allUid) {
+function coordinateHighlight (i, event, data, allUid) {
     const t = 200
-    if (hiddenData[i].hidden == false) {
+    const nclicked = Object.keys(data).map((i) => {
+        return data[i].clicked}).filter(Boolean).length
+    if (data[i].hidden == false) {
         if (event == 'mouseover') {
             toggleHighlight(i, radarCfg.opacity.on,
              radarCfg.stroke.on, radarCfg.radiusDot.on, t)
         }
         else if (event == 'mouseout') {
-            toggleHighlight(i, radarCfg.opacity.base,
-             radarCfg.stroke.base, radarCfg.radiusDot.base, t)
+            if (nclicked == 0) {
+                toggleHighlight(i, radarCfg.opacity.base,
+                    radarCfg.stroke.base, radarCfg.radiusDot.base, t)
+            }
+            else {
+                if (!data[i].clicked) {
+                    toggleHighlight(i, radarCfg.opacity.off,
+                                radarCfg.stroke.off, radarCfg.radiusDot.off, t)
+                }
+            }
+        }
+        else if (event == 'click') {
+            if (data[i].clicked) {
+                toggleHighlight(i, radarCfg.opacity.on,
+                    radarCfg.stroke.on, radarCfg.radiusDot.on, t)
+                d3.selectAll('.radarWrapper' + i)
+                    .each(function() {
+                        this.parentNode.appendChild(this)
+                })
+                let x = d3.select('.legendWrapper' + i)[0][0].children[0]
+                x.r.baseVal.value = radarCfg.radiusLegend.on
+            }
+            else {
+                if (nclicked == 0) {
+                    toggleHighlight(i, radarCfg.opacity.base,
+                        radarCfg.stroke.base, radarCfg.radiusDot.base, t)
+                }
+                else {
+                    toggleHighlight(i, radarCfg.opacity.off,
+                        radarCfg.stroke.off, radarCfg.radiusDot.off, t)
+                }
+                let x = d3.select('.legendWrapper' + i)[0][0].children[0]
+                x.r.baseVal.value = radarCfg.radiusLegend.base
+            }
         }
         else {
             return false
         }
         allUid.forEach( function (j) {
             if (j != i) {
-                if (hiddenData[j].hidden == false) {
-                    if (event == 'mouseover') {
+                if (data[j].hidden == false) {
+                    if (nclicked == 0) {
+                        if (event == 'mouseover') {
                        toggleHighlight(j, radarCfg.opacity.off,
-                        radarCfg.stroke.off, radarCfg.radiusDot.off, t)
+                            radarCfg.stroke.off, radarCfg.radiusDot.off, t)
+                        }
+                        else if (event == 'mouseout') {
+                            toggleHighlight(j, radarCfg.opacity.base,
+                                radarCfg.stroke.base, radarCfg.radiusDot.base, t)
+                        }
                     }
-                    else {
-                        toggleHighlight(j, radarCfg.opacity.base,
-                            radarCfg.stroke.base, radarCfg.radiusDot.base, t)
+                    if (event == 'click') {
+                        if (data[i].clicked) {
+                            if (!data[j].clicked) {
+                                toggleHighlight(j, radarCfg.opacity.off,
+                                    radarCfg.stroke.off, radarCfg.radiusDot.off, t)
+                            }
+                        }
+                        else {
+                            if (nclicked == 0) {
+                                toggleHighlight(j, radarCfg.opacity.base,
+                                    radarCfg.stroke.base, radarCfg.radiusDot.base, t)
+                            }
+                        }
                     }
                 }
             }
@@ -47,17 +97,13 @@ function coordinateHighlight (i, event, hiddenData, allUid) {
     return true
 }
 
-function toggleVisibility (i) {
-    let x = d3.select('.hideBtn' + i)[0][0]
-    if (x != null) {
-        const checked = x.checked
-        if (checked) {
-            toggleHighlight(i, radarCfg.opacity.base,
-                radarCfg.stroke.base, radarCfg.radiusDot.base, 0)
-        }    
-        else {
-            toggleHighlight(i, 0, 0, 0, 0)
-        }
+function toggleVisibility (uid, isHidden) {
+    if (isHidden) {
+        toggleHighlight(uid, 0, 0, 0, 0)
+    }    
+    else {
+        toggleHighlight(uid, radarCfg.opacity.base,
+            radarCfg.stroke.base, radarCfg.radiusDot.base, 0)
     }
 }
 
@@ -80,13 +126,6 @@ function removeBlocks(blocks) {
 
 function removePlot (i) {
     d3.select('.radarWrapper' + i).remove()
-}
-
-function bringToFront(i) {
-    d3.selectAll('.radarWrapper' + i)
-        .each(function() {
-            this.parentNode.appendChild(this)
-        })
 }
 
 function textWrap(text, width) {
@@ -217,7 +256,12 @@ function plotRadar(uid, data, color, numCells, figwidth, callBackFunc) {
             .style("fill-opacity", radarCfg.opacity.base)
             .on('mouseover', function() {callBackFunc(uid, 'mouseover')})
             .on('mouseout', function() {callBackFunc(uid, 'mouseout')})
-            .on('click', function () {bringToFront(uid)})
+            .on('click', function () {
+                d3.selectAll('.radarWrapper' + uid)
+                    .each(function() {
+                        this.parentNode.appendChild(this)
+                })
+            })
         blobWrapper.append("path")
             .attr("class", "radarStroke")
             .attr("d", radarLine(data))
@@ -300,8 +344,7 @@ function makeLegend(uid, ypos, width, fontsize, text, color, callBackFunc, callB
         .attr("cy", ypos)
         .attr("cx", 10 + radarCfg.radiusCloseBtn.base*2+radarCfg.radiusLegend.on)
         .style("fill", color)
-        .on('mouseover', function() {callBackFunc(uid, 'mouseover')})
-        .on('mouseout', function() {callBackFunc(uid, 'mouseout')})
+        .on('click', function () {callBackFunc(uid, 'click')})
     legendWrapper.append("foreignObject")
         .attr("x", 10 + radarCfg.radiusCloseBtn.base*2+radarCfg.radiusLegend.on*2)
         .attr("y", ypos-10)

@@ -74,7 +74,7 @@ class SubmitButton extends React.Component {
         return (
             <div>
                 {this.props.isDisabled ?
-                    <button className="btn" disabled>Wait</button>:
+                    <button className="btn btn-danger" disabled>Loading...</button>:
                     <button className="btn btn-info"
                             onClick={this.props.callBackFunc}>Submit</button>
                 }
@@ -149,7 +149,7 @@ class App extends React.Component {
             'selectedDataset': '', 'inputGenes': [],
             'SubmitButtonDisabled': false, 'doOverlay': true,
             'genes': {}, 'uidCounter': 0,
-            'displayedData': [], 'displayInfo': {},
+            'dataQueue' : 0, 'displayedData': [], 'displayInfo': {},
             'availColors' : null,
             'inputId': 'InputStoreEntry', 
             'geneBoxHeight': null, 'geneBoxWidth': null,
@@ -214,7 +214,7 @@ class App extends React.Component {
                 if (r['msg'] == 'OK') {
                     console.log('Cells fetched, resetting the axis')
                     this.state.cells = r.cells
-                    removeBlocks(['axisWrapper', 'plotWrapper'])
+                    removeBlocks(['axisWrapper', 'plotWrapper', 'sideInfoWrapper'])
                     plotAxis(this.state.cells, this.state.radarWidth)
                     if (this.state.doOverlay) {
                         console.log('Will rerender the plot with for new dataset')
@@ -222,15 +222,9 @@ class App extends React.Component {
                             this.fetchRadarData(null, uid)
                         })
                     }
-                    else {
-                        removeBlocks(['sideInfoWrapper'])
-                    }                   
                 }
                 else { alert (r.msg) }
             })
-    }
-    fetchCells () {
-        
     }
     fetchRadarData (gene_list, uid) {
         if (this.state.displayedData.length == 10) {
@@ -241,11 +235,12 @@ class App extends React.Component {
             console.log('Not overlaying, resetting the data')
             removeBlocks(['plotWrapper', 'sideInfoWrapper'])
             this.setState({
-                'genes': {}, 'uidCounter': 0,
+                'genes': {}, 'uidCounter': 0, 'dataQueue': 0,
                 'displayedData': [], 'displayInfo': {},
                 'availColors' : this.state.pallete,    
             })
         }
+        let rollback_active
         if (gene_list == null) {
             if (uid == null) {
                 console.log('ERROR :Null params in fetchRadarData')
@@ -255,7 +250,7 @@ class App extends React.Component {
                 console.log('Got saved raw gene list')
                 gene_list = this.state.genes[uid].raw
             }
-            const rollback_active = false
+            rollback_active = false
         }
         else {
             console.log('New genelist obtained. Updating state data')
@@ -267,10 +262,11 @@ class App extends React.Component {
             this.state.displayInfo[this.state.uidCounter] = {
                 'color' : this.state.availColors.shift(),
                 'hidden': false,
+                'clicked': false,
                 'label': 'List ' + this.state.uidCounter
             }
             this.state.displayedData.push(uid)
-            const rollback_active = true
+            rollback_active = true
         }
         console.log('Fetching radarData')
         this.setState({'SubmitButtonDisabled': true})
@@ -289,14 +285,26 @@ class App extends React.Component {
                     this.state.genes[uid].filtered[this.state.selectedDataset] = r.genes
                     this.plotRadarData(r.values[0], uid)
                     this.plotSideInfo(uid)
+
+                    if (rollback_active) {
+                        this.setState({'SubmitButtonDisabled': false})
+                    }
+                    else {
+                        this.state.dataQueue += 1
+                        if (this.state.dataQueue == this.state.displayedData.length) {
+                            console.log ('All data aggregated. Releasing submit button')
+                            this.setState({'SubmitButtonDisabled': false})
+                            this.state.dataQueue = 0
+                        }
+                    }
                 }
                 else {
                     alert (r.msg)
                     if (rollback_active) {
                         this.state.displayedData.pop()
                     }
+                    this.setState({'SubmitButtonDisabled': false})
                 }
-                this.setState({'SubmitButtonDisabled': false})
         })
     }
     plotRadarData (data, uid) {
@@ -308,7 +316,7 @@ class App extends React.Component {
             (i, e) => coordinateHighlight(
                 i, e, this.state.displayInfo, this.state.displayedData)
         )
-        toggleVisibility(uid)
+        toggleVisibility(uid, this.state.displayInfo[uid].hidden)
     }
     plotSideInfo (uid) {
         console.log('Plotting Side info for UID: ' + uid)
@@ -332,18 +340,33 @@ class App extends React.Component {
             (i) => {
                 this.state.displayInfo[uid].hidden = 
                     !this.state.displayInfo[uid].hidden
-                toggleVisibility(i)
+                if (this.state.displayInfo[uid].hidden) {
+                    this.state.displayInfo[uid].clicked = false
+                    }
+                coordinateHighlight(i, 'click', this.state.displayInfo,
+                                    this.state.displayedData)
+                toggleVisibility(i, this.state.displayInfo[uid].hidden)
             }
         )
         makeLegend(
             uid, ypos, 50, this.state.radarWidth/35,
             this.state.displayInfo[uid].label, this.state.displayInfo[uid].color,
-            (i, e) => coordinateHighlight(
-                i, e, this.state.displayInfo, this.state.displayedData),
+            (i, e) => {
+                if (e == 'click')  {
+                    if (!this.state.displayInfo[uid].hidden) {
+                        this.state.displayInfo[uid].clicked = 
+                            !this.state.displayInfo[uid].clicked
+                    }
+                }
+                coordinateHighlight(i, e, this.state.displayInfo,
+                                    this.state.displayedData)
+            },
             (text) => {
                 this.state.displayInfo[uid].label = text
             }
         )
+        coordinateHighlight(uid, 'click', this.state.displayInfo,
+                                    this.state.displayedData)
     }
     render () {
         ReactDOM.render(
