@@ -150,8 +150,7 @@ class App extends React.Component {
             'SubmitButtonDisabled': false, 'doOverlay': true,
             'genes': {}, 'uidCounter': 0,
             'dataQueue' : 0, 'displayedData': [], 'displayInfo': {},
-            'availColors' : null,
-            'inputId': 'InputStoreEntry', 
+            'availColors' : null, 'fontSize': null,
             'geneBoxHeight': null, 'geneBoxWidth': null,
             'radarMargins': null, 'radarWidth': null,
             'pallete' : [
@@ -169,21 +168,23 @@ class App extends React.Component {
     }
     makeDimensions () {
         console.log('Making dimensions')
-        console.log(document.querySelector('#InputStoreEntry').offsetWidth)
-        const input_store = document.querySelector('#InputStoreEntry').getBoundingClientRect()
-        this.state.geneBoxHeight = window.innerHeight*0.85 - input_store.bottom + 'px'
+        console.log(window.innerHeight)
+        const input_store = document.getElementById('InputStoreEntry').getBoundingClientRect()
+        const windowH = window.innerHeight*0.77
+        this.state.geneBoxHeight = windowH - input_store.bottom + 'px'
         this.state.geneBoxWidth = input_store.offsetWidth + 'px'
 
         const radar_bb = document.querySelector(this.state.radarId).getBoundingClientRect()
         const radar_bb_width = radar_bb.right - radar_bb.left
-        const radar_height =  Math.min((window.innerHeight*0.85 - 
-            document.getElementById('SubmitButtonComp').clientHeight), radar_bb_width*0.7)
+        const SubBtnH = document.getElementById('SubmitButtonComp').clientHeight
+        const radar_height =  Math.min((windowH - SubBtnH), radar_bb_width*0.7)
         this.state.radarWidth = 0.7*radar_height
         this.state.radarMargins = {
             'top': radar_height*0.1, 'bottom': radar_height*0.1, 
             'left': radar_height*0.15,
             'right': radar_height*0.15 + Math.min(radar_bb_width-radar_height, this.state.radarWidth/2), 
         }
+        this.state.fontSize = this.state.radarWidth/30
     }
     fetchDatasets () {
         console.log('Fetching Datasets')
@@ -215,7 +216,7 @@ class App extends React.Component {
                     console.log('Cells fetched, resetting the axis')
                     this.state.cells = r.cells
                     removeBlocks(['axisWrapper', 'plotWrapper', 'sideInfoWrapper'])
-                    plotAxis(this.state.cells, this.state.radarWidth)
+                    plotAxis(this.state.cells, this.state.radarWidth, this.state.fontSize)
                     if (this.state.doOverlay) {
                         console.log('Will rerender the plot with for new dataset')
                         this.state.displayedData.forEach(uid => {
@@ -283,6 +284,7 @@ class App extends React.Component {
                 if (r.msg == 'OK') {
                     document.getElementById(this.state.geneBoxid).value = r.genes
                     this.state.genes[uid].filtered[this.state.selectedDataset] = r.genes
+                    r.values[0].pop()
                     this.plotRadarData(r.values[0], uid)
                     this.plotSideInfo(uid)
 
@@ -338,18 +340,18 @@ class App extends React.Component {
         makeHideToggle (
             uid, ypos,this.state.displayInfo[uid].hidden,
             (i) => {
-                this.state.displayInfo[uid].hidden = 
-                    !this.state.displayInfo[uid].hidden
-                if (this.state.displayInfo[uid].hidden) {
+                if (!this.state.displayInfo[uid].hidden) {
                     this.state.displayInfo[uid].clicked = false
-                    }
+                }
                 coordinateHighlight(i, 'click', this.state.displayInfo,
                                     this.state.displayedData)
+                this.state.displayInfo[uid].hidden = 
+                    !this.state.displayInfo[uid].hidden
                 toggleVisibility(i, this.state.displayInfo[uid].hidden)
             }
         )
         makeLegend(
-            uid, ypos, 50, this.state.radarWidth/35,
+            uid, ypos, 50, this.state.fontSize,
             this.state.displayInfo[uid].label, this.state.displayInfo[uid].color,
             (i, e) => {
                 if (e == 'click')  {

@@ -190,11 +190,10 @@ function initializeSvg (id, figwidth, margins) {
             "," + margins.top + ")")
 }
 
-function plotAxis(axisNames, figwidth) {
-    var radius = Math.min(figwidth/2, figwidth/2)
+function plotAxis(axisNames, figwidth, fontsize) {
     var angleSlice = Math.PI * 2 / axisNames.length
     var rScale = d3.scale.linear()
-        .range([0, radius])
+        .range([0, figwidth/2])
         .domain([0, 1])
     
     var axisGrid = d3.select('.axisWrapper')
@@ -203,7 +202,7 @@ function plotAxis(axisNames, figwidth) {
        .enter()
        .append("circle")
        .attr("class", "gridCircle")
-       .attr("r", function(d, i){return radius/5*d;})
+       .attr("r", function(d, i){return (figwidth/2)/5*d;})
        .style("fill", "#CDCDCD")
        .style("stroke", "#CDCDCD")
        .style("fill-opacity", 0.1)
@@ -225,7 +224,7 @@ function plotAxis(axisNames, figwidth) {
         .style("stroke-width", "2px")
     axis.append("text")
         .attr("class", "legend")
-        .style("font-size", figwidth/35 + "px")
+        .style("font-size", fontsize + "px")
         .attr("text-anchor", "middle")
         .attr("dy", "0.35em")
         .attr("x", function(d, i){ return rScale(1.15) *
@@ -237,49 +236,50 @@ function plotAxis(axisNames, figwidth) {
 }
 
 function plotRadar(uid, data, color, numCells, figwidth, callBackFunc) {
-    var radius = Math.min(figwidth/2, figwidth/2)
     var angleSlice = Math.PI * 2 / numCells
     var rScale = d3.scale.linear()
-        .range([0, radius])
+        .range([0, figwidth/2])
         .domain([0, 1])
+
     var radarLine = d3.svg.line.radial()
-            .interpolate("cardinal-closed")
-            .radius(function(d) { return rScale(d)})
-            .angle(function(d,i) {  return i*angleSlice})
+        .interpolate("cardinal-closed")
+        .radius(function(d) { return rScale(d) })
+        .angle(function(d,i) {  return i*angleSlice })
+    
     var blobWrapper = d3.select('.plotWrapper').append("g")
                         .attr("class", "radarWrapper" + uid)
-        blobWrapper
-            .append("path")
-            .attr("class", "radarArea")
-            .attr("d", radarLine(data))
-            .style("fill", color)
-            .style("fill-opacity", radarCfg.opacity.base)
-            .on('mouseover', function() {callBackFunc(uid, 'mouseover')})
-            .on('mouseout', function() {callBackFunc(uid, 'mouseout')})
-            .on('click', function () {
-                d3.selectAll('.radarWrapper' + uid)
-                    .each(function() {
-                        this.parentNode.appendChild(this)
-                })
+    blobWrapper
+        .append("path")
+        .attr("class", "radarArea")
+        .attr("d", radarLine(data))
+        .style("fill", color)
+        .style("fill-opacity", radarCfg.opacity.base)
+        .on('mouseover', function() {callBackFunc(uid, 'mouseover')})
+        .on('mouseout', function() {callBackFunc(uid, 'mouseout')})
+        .on('click', function () {
+            d3.selectAll('.radarWrapper' + uid)
+                .each(function() {
+                    this.parentNode.appendChild(this)
             })
-        blobWrapper.append("path")
-            .attr("class", "radarStroke")
-            .attr("d", radarLine(data))
-            .style("stroke-width", radarCfg.stroke.base + "px")
-            .style("stroke", color)
-            .style("fill", "none")
-            .style("filter" , "url(#glow)")
-        blobWrapper.selectAll(".radarCircle")
-            .data(data)
-            .enter().append("circle")
-            .attr("class", "radarCircle")
-            .attr("r", radarCfg.radiusDot.base)
-            .attr("cx", function(d, i) { return rScale(d) *
-                Math.cos(angleSlice*i - Math.PI/2)})
-            .attr("cy", function(d, i){ return rScale(d) *
-                Math.sin(angleSlice*i - Math.PI/2)})
-            .style("fill", color)
-            .style("fill-opacity", 0.8)
+        })
+    blobWrapper.append("path")
+        .attr("class", "radarStroke")
+        .attr("d", radarLine(data))
+        .style("stroke-width", radarCfg.stroke.base + "px")
+        .style("stroke", color)
+        .style("fill", "none")
+        .style("filter" , "url(#glow)")
+    blobWrapper.selectAll(".radarCircle")
+        .data(data)
+        .enter().append("circle")
+        .attr("class", "radarCircle")
+        .attr("r", radarCfg.radiusDot.base)
+        .attr("cx", function(d, i) { return rScale(d) *
+            Math.cos(angleSlice*i - Math.PI/2)})
+        .attr("cy", function(d, i){ return rScale(d) *
+            Math.sin(angleSlice*i - Math.PI/2)})
+        .style("fill", color)
+        .style("fill-opacity", 0.8)
 }
 
 function makeSideGroup (uid) {
@@ -327,6 +327,7 @@ function makeHideToggle (uid, ypos, isHidden, callBackFunc) {
         .attr("y", ypos-10)
         .attr('class', 'hideBtnWrapper' + uid)
         .append('xhtml:div')
+        .style('vertical-align', 'middle')
         .append('input')
         .attr('class', 'hideBtn' + uid)
         .attr('type', 'checkbox')
@@ -342,11 +343,11 @@ function makeLegend(uid, ypos, width, fontsize, text, color, callBackFunc, callB
         .attr("class", "legendCircle")
         .attr("r", radarCfg.radiusLegend.base)
         .attr("cy", ypos)
-        .attr("cx", 10 + radarCfg.radiusCloseBtn.base*2+radarCfg.radiusLegend.on)
+        .attr("cx", 20 + radarCfg.radiusCloseBtn.base*2+radarCfg.radiusLegend.on)
         .style("fill", color)
         .on('click', function () {callBackFunc(uid, 'click')})
     legendWrapper.append("foreignObject")
-        .attr("x", 10 + radarCfg.radiusCloseBtn.base*2+radarCfg.radiusLegend.on*2)
+        .attr("x", 20 + radarCfg.radiusCloseBtn.base*2+radarCfg.radiusLegend.on*2)
         .attr("y", ypos-10)
         .attr("width", width + "px")
         .attr("height", fontsize*1.5 + "px")
